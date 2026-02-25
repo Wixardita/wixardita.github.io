@@ -14,8 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Ensure data folder exists
         run: |
@@ -24,7 +23,7 @@ jobs:
             echo "[]" > data/news.json
           fi
 
-      - name: Generate pillola (OpenAI) -> data/news.json
+      - name: Generate pillola
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
@@ -32,26 +31,24 @@ jobs:
           import fs from "fs";
 
           if (!process.env.OPENAI_API_KEY) {
-            console.error("OPENAI_API_KEY mancante (GitHub Secret).");
+            console.error("OPENAI_API_KEY mancante.");
             process.exit(1);
           }
 
           const today = new Date().toISOString().slice(0, 10);
           const path = "data/news.json";
 
-          // Load archive
           let arr = [];
           try {
-            arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
+            arr = JSON.parse(fs.readFileSync(path, "utf8"));
             if (!Array.isArray(arr)) arr = [];
           } catch {
             arr = [];
           }
 
-          // Memory (last 40 titles)
           const recentTitles = arr
             .slice(0, 40)
-            .map(x => (x?.title ?? "").trim())
+            .map(x => x.title)
             .filter(Boolean)
             .join(" | ") || "(nessuno)";
 
@@ -59,53 +56,30 @@ jobs:
           Devi scrivere un articolo per il blog dello Studio Paganelli.
 
           Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
-          Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
+          Genova può essere citata solo come riferimento a casi passati.
 
-          TEMI GIÀ TRATTATI RECENTEMENTE (NON RIPETERE):
+          TEMI GIÀ TRATTATI (NON RIPETERE):
           ${recentTitles}
 
           Regola anti-ripetizione:
-          - Non ripetere né riformulare in modo simile nessuno dei temi sopra.
-          - Se il tema è affine, cambia davvero angolo e sostanza (non “stesso tema con titolo diverso”).
+          - Non ripetere né riformulare temi simili.
 
           SCRIVI:
-          Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale
-          (legale, tecnico, amministrativo o normativo), con taglio pratico e operativo.
+          Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale.
 
           TONO:
           - autorevole ma non accademico
           - professionale ma accessibile
-          - ironia leggera e intelligente (mai sarcastica verso condomini, mai polemica verso istituzioni)
+          - ironia leggera e intelligente
           - conclusioni ferme
 
           STILE:
-          - Parti da un problema reale o domanda tipica, NON da una definizione teorica.
-          - Evita burocratese, super-citazioni di norme e spiegazioni da manuale universitario.
-          - Spiega la regola attraverso casi realistici di condominio.
+          - Parti da un problema reale.
+          - Evita burocratese.
+          - Inserisci sezione finale "Cosa fare in pratica" con 3-5 punti elenco.
 
-          EPISODIO (solo se naturale e coerente, NON obbligatorio):
-          - massimo 8-10 righe
-          - nessun nome o dettaglio identificativo
-          - non drammatico per forza, non autocelebrativo
-          - deve servire a chiarire il principio (non diventare racconto)
-
-          CHIUSURA:
-          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco,
-          concreti (cosa verificare / cosa evitare / cosa fare).
-
-          NOVITÀ:
-          Se non hai certezza assoluta di novità normative/giurisprudenziali, NON inventare riferimenti.
-
-          FIRMA FINALE OBBLIGATORIA:
+          Firma finale obbligatoria:
           Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
-
-          OUTPUT OBBLIGATORIO:
-          Restituisci SOLO JSON valido (niente markdown, niente testo extra), struttura:
-          {
-            "title": "...",
-            "body": "...",
-            "tags": ["...", "...", "..."]
-          }
           `.trim();
 
           const response = await fetch("https://api.openai.com/v1/responses", {
@@ -116,73 +90,55 @@ jobs:
             },
             body: JSON.stringify({
               model: "gpt-5-mini",
-              input: [
-                { role: "system", content: "Return ONLY valid JSON. No markdown. No extra text." },
-                { role: "user", content: prompt }
-              ],
+              input: prompt,
               max_output_tokens: 2000
             })
           });
 
           if (!response.ok) {
-            console.error("OpenAI error:", await response.text());
+            console.error(await response.text());
             process.exit(1);
           }
 
           const data = await response.json();
 
-          // Read text from Responses API robustly
           let text = "";
-          if (typeof data.output_text === "string" && data.output_text.trim()) {
+
+          if (data.output_text) {
             text = data.output_text;
           } else if (Array.isArray(data.output)) {
             for (const item of data.output) {
-              if (item && Array.isArray(item.content)) {
+              if (item.content) {
                 for (const c of item.content) {
-                  if (c && typeof c.text === "string") {
-                    text += c.text;
-                  }
+                  if (c.text) text += c.text;
                 }
               }
             }
           }
 
-          text = (text || "").trim();
+          text = text.trim();
 
           if (!text) {
-            console.error("Risposta vuota dal modello (nessun output_text e nessun output.content.text).");
-            console.error("Dump keys:", Object.keys(data || {}));
+            console.error("Risposta vuota dal modello.");
             process.exit(1);
           }
 
-          let obj;
-          try {
-            obj = JSON.parse(text);
-          } catch {
-            console.error("JSON non valido ricevuto. Output grezzo (primi 2000 char):");
-            console.error(text.slice(0, 2000));
-            process.exit(1);
-          }
+          // Costruiamo noi il titolo dalla prima riga
+          const firstLine = text.split("\n")[0].trim();
+          const title = firstLine.length > 10 ? firstLine : "Nuova pillola di condominio";
 
           const entry = {
             date: today,
-            title: String(obj.title || "").trim(),
-            body: String(obj.body || "").trim(),
-            tags: Array.isArray(obj.tags) ? obj.tags.map(t => String(t).trim()).filter(Boolean) : []
+            title: title,
+            body: text,
+            tags: []
           };
 
-          if (!entry.title || !entry.body) {
-            console.error("Struttura JSON incompleta:", entry);
-            process.exit(1);
-          }
-
-          // Remove any existing entry for today, then prepend
-          const filtered = arr.filter(x => x?.date !== today);
+          const filtered = arr.filter(x => x.date !== today);
           filtered.unshift(entry);
 
-          // Cap archive to 180 entries (~6 months)
-          fs.writeFileSync(path, JSON.stringify(filtered.slice(0, 180), null, 2) + "\n");
-          console.log("OK: news.json aggiornato.");
+          fs.writeFileSync(path, JSON.stringify(filtered.slice(0, 180), null, 2));
+          console.log("news.json aggiornato con successo.");
           EOF
 
           node gen.mjs
@@ -191,9 +147,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: pillole/${{ github.run_id }}
-          title: "Nuova pillola di condominio - ${{ github.run_id }}"
-          commit-message: "Aggiorna data/news.json (pillola)"
-          body: |
-            PR automatica: nuova pillola pronta.
-            Controlla e fai merge per pubblicare sul sito.
+          title: "Nuova pillola di condominio"
+          commit-message: "Aggiornamento automatico news.json"
+          body: PR automatica per nuova pillola.
           labels: pillole
