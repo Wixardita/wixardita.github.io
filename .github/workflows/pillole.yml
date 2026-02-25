@@ -118,7 +118,7 @@ jobs:
                 { role: "system", content: "Return strictly valid JSON only." },
                 { role: "user", content: prompt }
               ],
-              response_format: { type: "json_object" },
+              text: { format: "json" },
               max_output_tokens: 1700
             })
           });
