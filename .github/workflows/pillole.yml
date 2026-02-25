@@ -131,11 +131,21 @@ jobs:
               "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
               "Content-Type": "application/json"
             },
-            body: JSON.stringify({
-              model: "gpt-5-mini",
-              input: prompt,
-              max_output_tokens: 1400
-            })
+           body: JSON.stringify({
+  model: "gpt-5-mini",
+  input: [
+    {
+      role: "system",
+      content: "You are a careful assistant that outputs strictly valid JSON only."
+    },
+    {
+      role: "user",
+      content: prompt
+    }
+  ],
+  response_format: { type: "json_object" },
+  max_output_tokens: 1600
+})
           });
 
           if (!r.ok) {
