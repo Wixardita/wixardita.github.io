@@ -1,0 +1,119 @@
+name: Pillole quotidiane
+
+on:
+  schedule:
+    - cron: "5 6 * * *"   # 07:05 in Italia quando siamo in ora solare (UTC+1)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate pillola (OpenAI) -> data/news.json
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cat > gen.mjs <<'EOF'
+          import fs from "fs";
+
+          const today = new Date().toISOString().slice(0, 10);
+
+          const prompt = `
+          Scrivi una "Pillola di condominio" in italiano di circa 800 parole.
+          Stile: pratico, autorevole, chiaro, senza toni da blog acchiappa-click.
+          Struttura obbligatoria:
+          1) Titolo (una riga)
+          2) Testo (paragrafi brevi)
+          3) Sezione finale: "Cosa fare in pratica" con 3-5 punti elenco.
+
+          Vincoli:
+          - Evita numeri di legge, articoli e sentenze se non sei sicuro al 100%.
+          - Non dare consulenza legale personalizzata: resta su prassi e principi generali.
+          - Scegli UNA micro-tematica (es: ripartizione spese, morosità, rumori, infiltrazioni, lavori straordinari, assemblea, deleghe, tabelle millesimali, manutenzione impianti).
+
+          Output: SOLO JSON valido (niente markdown, niente testo extra) con chiavi:
+          {
+            "title": "...",
+            "body": "...",
+            "tags": ["...", "..."]
+          }
+          `;
+
+          const r = await fetch("https://api.openai.com/v1/responses", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: "gpt-4.1-mini",
+              input: prompt
+            })
+          });
+
+          if (!r.ok) {
+            console.error("OpenAI error:", await r.text());
+            process.exit(1);
+          }
+
+          const data = await r.json();
+          const text = (data.output_text || "").trim();
+
+          let obj;
+          try {
+            obj = JSON.parse(text);
+          } catch (e) {
+            console.error("Model did not return pure JSON. Raw output:");
+            console.error(text);
+            process.exit(1);
+          }
+
+          const entry = {
+            date: today,
+            title: String(obj.title || "").trim(),
+            body: String(obj.body || "").trim(),
+            tags: Array.isArray(obj.tags) ? obj.tags.map(t => String(t).trim()).filter(Boolean) : []
+          };
+
+          if (!entry.title || !entry.body) {
+            console.error("Invalid entry generated:", entry);
+            process.exit(1);
+          }
+
+          const path = "data/news.json";
+          const arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
+          if (!Array.isArray(arr)) throw new Error("data/news.json must be an array");
+
+          // evita doppioni stesso giorno
+          const filtered = arr.filter(x => x?.date !== today);
+          filtered.unshift(entry);
+
+          // tieni al massimo 120 pillole (circa 4 mesi)
+          const capped = filtered.slice(0, 120);
+
+          fs.writeFileSync(path, JSON.stringify(capped, null, 2) + "\n");
+          console.log("Updated", path);
+          EOF
+
+          node gen.mjs
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: pillole/${{ github.run_id }}
+          title: "Pillola di condominio – ${{
+            github.run_id
+          }}"
+          commit-message: "Aggiorna data/news.json (pillola)"
+          body: |
+            PR automatica: nuova pillola pronta.
+            Approva questa PR per pubblicare sul sito.
+          labels: pillole
