@@ -38,6 +38,7 @@ jobs:
           const today = new Date().toISOString().slice(0, 10);
           const path = "data/news.json";
 
+          // Load archive
           let arr = [];
           try {
             arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
@@ -46,59 +47,64 @@ jobs:
             arr = [];
           }
 
+          // Memory: last 40 titles
           const recentTitlesList = arr
             .slice(0, 40)
             .map(x => (x?.title ?? "").trim())
             .filter(Boolean);
 
-          const recentTitles = recentTitlesList.length ? recentTitlesList.join(" | ") : "(nessuno)";
+          const recentTitles = recentTitlesList.length
+            ? recentTitlesList.join(" | ")
+            : "(nessuno)";
 
           const prompt = `
-          Devi scrivere un articolo per il blog dello Studio Paganelli.
+          Scrivi un articolo di circa 800 parole per il blog di uno studio di amministrazione condominiale.
 
-          Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
+          CONTESTO:
+          Lo Studio opera prevalentemente tra Loano e Pietra Ligure.
           Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
 
-          TEMI GIÀ TRATTATI RECENTEMENTE (NON RIPETERE):
+          ANTI-RIPETIZIONI (TEMI GIÀ TRATTATI RECENTEMENTE: NON RIPETERE):
           ${recentTitles}
 
-          Regola anti-ripetizione:
+          Regole:
           - Non ripetere né riformulare in modo simile nessuno dei temi sopra.
-          - Se il tema è affine, cambia davvero angolo e sostanza (non “stesso tema con titolo diverso”).
+          - Se un tema è affine, scegli un angolo DAVVERO diverso (non “stesso tema con titolo diverso”).
 
-          SCRIVI:
-          Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale
-          (legale, tecnico, amministrativo o normativo), con taglio pratico e operativo.
+          OBIETTIVO:
+          Tratta un tema concreto di diritto o gestione condominiale (legale, tecnico, amministrativo o normativo)
+          con taglio pratico e operativo.
 
           TONO:
           - autorevole ma non accademico
           - professionale ma accessibile
-          - ironia leggera e intelligente (mai sarcastica verso condomini, mai polemica verso istituzioni)
+          - leggera ironia intelligente, mai caricaturale
           - conclusioni ferme
 
           STILE:
-          - Parti da un problema reale o domanda tipica, NON da una definizione teorica.
-          - Evita burocratese, super-citazioni di norme e spiegazioni da manuale universitario.
-          - Spiega la regola attraverso casi realistici di condominio.
+          - Parti da un problema reale o da una domanda tipica della pratica.
+          - Evita burocratese e spiegazioni da manuale universitario.
+          - Evita citazioni normative letterali salvo necessità.
 
-          EPISODIO (solo se naturale e coerente, NON obbligatorio):
-          - massimo 8-10 righe
+          EPISODIO (solo se naturale, non obbligatorio):
+          - massimo 8–10 righe
           - nessun nome o dettaglio identificativo
-          - non drammatico per forza, non autocelebrativo
+          - non drammatico per forza
+          - non autocelebrativo
           - deve servire a chiarire il principio (non diventare racconto)
 
-          CHIUSURA:
-          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco,
-          concreti (cosa verificare / cosa evitare / cosa fare).
+          CHIUSURA OBBLIGATORIA:
+          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco concreti
+          (cosa verificare / cosa evitare / cosa fare).
 
           NOVITÀ:
           Se non hai certezza assoluta di novità normative/giurisprudenziali, NON inventare riferimenti.
 
-          FIRMA FINALE OBBLIGATORIA:
+          FIRMA FINALE OBBLIGATORIA (ultima riga dell’articolo):
           Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
 
           OUTPUT OBBLIGATORIO:
-          Restituisci SOLO JSON valido (niente markdown, niente testo extra) con struttura:
+          Restituisci SOLO JSON valido (niente markdown, niente testo extra), struttura:
           {
             "title": "...",
             "body": "...",
@@ -106,39 +112,84 @@ jobs:
           }
           `.trim();
 
-          const r = await fetch("https://api.openai.com/v1/responses", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              model: "gpt-5-mini",
-              input: [
-                { role: "system", content: "Return strictly valid JSON only." },
-                { role: "user", content: prompt }
-              ],
-              text: { format: "json" },
-              max_output_tokens: 1700
-            })
-          });
+          async function callOpenAI(userPrompt, maxTokens = 1700) {
+            const r = await fetch("https://api.openai.com/v1/responses", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                model: "gpt-5-mini",
+                input: [
+                  { role: "system", content: "You must output ONLY valid JSON. No markdown. No extra text." },
+                  { role: "user", content: userPrompt }
+                ],
+                max_output_tokens: maxTokens
+              })
+            });
 
-          if (!r.ok) {
-            console.error("OpenAI error:", await r.text());
-            process.exit(1);
+            if (!r.ok) {
+              console.error("OpenAI error:", await r.text());
+              process.exit(1);
+            }
+            return await r.json();
           }
 
-          const data = await r.json();
-          const text = (data.output_text || "").trim();
+          function extractJsonObject(text) {
+            const t = (text || "").trim();
 
-          // Helpful debug if something goes wrong
-          console.log("RAW OUTPUT (first 1200 chars):", text.slice(0, 1200));
+            // 1) direct parse
+            try {
+              const obj = JSON.parse(t);
+              if (obj && typeof obj === "object") return obj;
+            } catch {}
 
-          let obj = null;
-          try { obj = JSON.parse(text); } catch {}
+            // 2) extract first {...} block
+            const start = t.indexOf("{");
+            const end = t.lastIndexOf("}");
+            if (start !== -1 && end !== -1 && end > start) {
+              const sub = t.slice(start, end + 1);
+              try {
+                const obj = JSON.parse(sub);
+                if (obj && typeof obj === "object") return obj;
+              } catch {}
+            }
 
-          if (!obj || typeof obj !== "object") {
-            console.error("Model did not return valid JSON object.");
+            return null;
+          }
+
+          // First attempt
+          const data1 = await callOpenAI(prompt, 1800);
+          const text1 = (data1.output_text || "").trim();
+          console.log("RAW OUTPUT (first 1200 chars):", text1.slice(0, 1200));
+
+          let obj = extractJsonObject(text1);
+
+          // Repair pass if needed
+          if (!obj) {
+            const repairPrompt = `
+          Il testo seguente dovrebbe essere un JSON valido con struttura:
+          {
+            "title": "...",
+            "body": "...",
+            "tags": ["...", "...", "..."]
+          }
+          Correggi SOLO la sintassi e restituisci SOLO JSON valido. Nessun testo extra.
+
+          TESTO:
+          ${text1}
+          `.trim();
+
+            const data2 = await callOpenAI(repairPrompt, 900);
+            const text2 = (data2.output_text || "").trim();
+            console.log("REPAIRED OUTPUT (first 1200 chars):", text2.slice(0, 1200));
+
+            obj = extractJsonObject(text2);
+          }
+
+          if (!obj) {
+            console.error("Model did not return valid JSON even after repair.");
             process.exit(1);
           }
 
@@ -146,7 +197,9 @@ jobs:
             date: today,
             title: String(obj.title || "").trim(),
             body: String(obj.body || "").trim(),
-            tags: Array.isArray(obj.tags) ? obj.tags.map(t => String(t).trim()).filter(Boolean) : []
+            tags: Array.isArray(obj.tags)
+              ? obj.tags.map(t => String(t).trim()).filter(Boolean)
+              : []
           };
 
           if (!entry.title || !entry.body) {
@@ -154,7 +207,7 @@ jobs:
             process.exit(1);
           }
 
-          // Remove possible duplicate for same date, prepend new
+          // Remove duplicates for the same date, prepend new entry
           const filtered = arr.filter(x => x?.date !== today);
           filtered.unshift(entry);
 
