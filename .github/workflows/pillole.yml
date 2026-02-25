@@ -1,9 +1,9 @@
 name: Pillole quotidiane
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "5 6 * * *"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,6 +12,7 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,7 +32,7 @@ jobs:
           import fs from "fs";
 
           if (!process.env.OPENAI_API_KEY) {
-            console.error("Missing OPENAI_API_KEY secret.");
+            console.error("OPENAI_API_KEY mancante (GitHub Secret).");
             process.exit(1);
           }
 
@@ -47,60 +48,55 @@ jobs:
             arr = [];
           }
 
-          // Memory: last 40 titles
-          const recentTitlesList = arr
+          // Memory (last 40 titles)
+          const recentTitles = arr
             .slice(0, 40)
             .map(x => (x?.title ?? "").trim())
-            .filter(Boolean);
-
-          const recentTitles = recentTitlesList.length
-            ? recentTitlesList.join(" | ")
-            : "(nessuno)";
+            .filter(Boolean)
+            .join(" | ") || "(nessuno)";
 
           const prompt = `
-          Scrivi un articolo di circa 800 parole per il blog di uno studio di amministrazione condominiale.
+          Devi scrivere un articolo per il blog dello Studio Paganelli.
 
-          CONTESTO:
-          Lo Studio opera prevalentemente tra Loano e Pietra Ligure.
+          Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
           Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
 
-          ANTI-RIPETIZIONI (TEMI GIÀ TRATTATI RECENTEMENTE: NON RIPETERE):
+          TEMI GIÀ TRATTATI RECENTEMENTE (NON RIPETERE):
           ${recentTitles}
 
-          Regole:
+          Regola anti-ripetizione:
           - Non ripetere né riformulare in modo simile nessuno dei temi sopra.
-          - Se un tema è affine, scegli un angolo DAVVERO diverso (non “stesso tema con titolo diverso”).
+          - Se il tema è affine, cambia davvero angolo e sostanza (non “stesso tema con titolo diverso”).
 
-          OBIETTIVO:
-          Tratta un tema concreto di diritto o gestione condominiale (legale, tecnico, amministrativo o normativo)
-          con taglio pratico e operativo.
+          SCRIVI:
+          Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale
+          (legale, tecnico, amministrativo o normativo), con taglio pratico e operativo.
 
           TONO:
           - autorevole ma non accademico
           - professionale ma accessibile
-          - leggera ironia intelligente, mai caricaturale
+          - ironia leggera e intelligente (mai sarcastica verso condomini, mai polemica verso istituzioni)
           - conclusioni ferme
 
           STILE:
-          - Parti da un problema reale o da una domanda tipica della pratica.
-          - Evita burocratese e spiegazioni da manuale universitario.
-          - Evita citazioni normative letterali salvo necessità.
+          - Parti da un problema reale o domanda tipica, NON da una definizione teorica.
+          - Evita burocratese, super-citazioni di norme e spiegazioni da manuale universitario.
+          - Spiega la regola attraverso casi realistici di condominio.
 
-          EPISODIO (solo se naturale, non obbligatorio):
-          - massimo 8–10 righe
+          EPISODIO (solo se naturale e coerente, NON obbligatorio):
+          - massimo 8-10 righe
           - nessun nome o dettaglio identificativo
-          - non drammatico per forza
-          - non autocelebrativo
+          - non drammatico per forza, non autocelebrativo
           - deve servire a chiarire il principio (non diventare racconto)
 
-          CHIUSURA OBBLIGATORIA:
-          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco concreti
-          (cosa verificare / cosa evitare / cosa fare).
+          CHIUSURA:
+          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco,
+          concreti (cosa verificare / cosa evitare / cosa fare).
 
           NOVITÀ:
           Se non hai certezza assoluta di novità normative/giurisprudenziali, NON inventare riferimenti.
 
-          FIRMA FINALE OBBLIGATORIA (ultima riga dell’articolo):
+          FIRMA FINALE OBBLIGATORIA:
           Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
 
           OUTPUT OBBLIGATORIO:
@@ -112,84 +108,59 @@ jobs:
           }
           `.trim();
 
-          async function callOpenAI(userPrompt, maxTokens = 1700) {
-            const r = await fetch("https://api.openai.com/v1/responses", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                model: "gpt-5-mini",
-                input: [
-                  { role: "system", content: "You must output ONLY valid JSON. No markdown. No extra text." },
-                  { role: "user", content: userPrompt }
-                ],
-                max_output_tokens: maxTokens
-              })
-            });
+          const response = await fetch("https://api.openai.com/v1/responses", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: "gpt-5-mini",
+              input: [
+                { role: "system", content: "Return ONLY valid JSON. No markdown. No extra text." },
+                { role: "user", content: prompt }
+              ],
+              max_output_tokens: 2000
+            })
+          });
 
-            if (!r.ok) {
-              console.error("OpenAI error:", await r.text());
-              process.exit(1);
+          if (!response.ok) {
+            console.error("OpenAI error:", await response.text());
+            process.exit(1);
+          }
+
+          const data = await response.json();
+
+          // Read text from Responses API robustly
+          let text = "";
+          if (typeof data.output_text === "string" && data.output_text.trim()) {
+            text = data.output_text;
+          } else if (Array.isArray(data.output)) {
+            for (const item of data.output) {
+              if (item && Array.isArray(item.content)) {
+                for (const c of item.content) {
+                  if (c && typeof c.text === "string") {
+                    text += c.text;
+                  }
+                }
+              }
             }
-            return await r.json();
           }
 
-          function extractJsonObject(text) {
-            const t = (text || "").trim();
+          text = (text || "").trim();
 
-            // 1) direct parse
-            try {
-              const obj = JSON.parse(t);
-              if (obj && typeof obj === "object") return obj;
-            } catch {}
-
-            // 2) extract first {...} block
-            const start = t.indexOf("{");
-            const end = t.lastIndexOf("}");
-            if (start !== -1 && end !== -1 && end > start) {
-              const sub = t.slice(start, end + 1);
-              try {
-                const obj = JSON.parse(sub);
-                if (obj && typeof obj === "object") return obj;
-              } catch {}
-            }
-
-            return null;
+          if (!text) {
+            console.error("Risposta vuota dal modello (nessun output_text e nessun output.content.text).");
+            console.error("Dump keys:", Object.keys(data || {}));
+            process.exit(1);
           }
 
-          // First attempt
-          const data1 = await callOpenAI(prompt, 1800);
-          const text1 = (data1.output_text || "").trim();
-          console.log("RAW OUTPUT (first 1200 chars):", text1.slice(0, 1200));
-
-          let obj = extractJsonObject(text1);
-
-          // Repair pass if needed
-          if (!obj) {
-            const repairPrompt = `
-          Il testo seguente dovrebbe essere un JSON valido con struttura:
-          {
-            "title": "...",
-            "body": "...",
-            "tags": ["...", "...", "..."]
-          }
-          Correggi SOLO la sintassi e restituisci SOLO JSON valido. Nessun testo extra.
-
-          TESTO:
-          ${text1}
-          `.trim();
-
-            const data2 = await callOpenAI(repairPrompt, 900);
-            const text2 = (data2.output_text || "").trim();
-            console.log("REPAIRED OUTPUT (first 1200 chars):", text2.slice(0, 1200));
-
-            obj = extractJsonObject(text2);
-          }
-
-          if (!obj) {
-            console.error("Model did not return valid JSON even after repair.");
+          let obj;
+          try {
+            obj = JSON.parse(text);
+          } catch {
+            console.error("JSON non valido ricevuto. Output grezzo (primi 2000 char):");
+            console.error(text.slice(0, 2000));
             process.exit(1);
           }
 
@@ -197,25 +168,21 @@ jobs:
             date: today,
             title: String(obj.title || "").trim(),
             body: String(obj.body || "").trim(),
-            tags: Array.isArray(obj.tags)
-              ? obj.tags.map(t => String(t).trim()).filter(Boolean)
-              : []
+            tags: Array.isArray(obj.tags) ? obj.tags.map(t => String(t).trim()).filter(Boolean) : []
           };
 
           if (!entry.title || !entry.body) {
-            console.error("Invalid entry generated:", entry);
+            console.error("Struttura JSON incompleta:", entry);
             process.exit(1);
           }
 
-          // Remove duplicates for the same date, prepend new entry
+          // Remove any existing entry for today, then prepend
           const filtered = arr.filter(x => x?.date !== today);
           filtered.unshift(entry);
 
-          // Keep max 180 posts (~6 mesi)
-          const capped = filtered.slice(0, 180);
-
-          fs.writeFileSync(path, JSON.stringify(capped, null, 2) + "\n");
-          console.log("Updated", path);
+          // Cap archive to 180 entries (~6 months)
+          fs.writeFileSync(path, JSON.stringify(filtered.slice(0, 180), null, 2) + "\n");
+          console.log("OK: news.json aggiornato.");
           EOF
 
           node gen.mjs
@@ -224,7 +191,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: pillole/${{ github.run_id }}
-          title: "Pillola di condominio - ${{ github.run_id }}"
+          title: "Nuova pillola di condominio - ${{ github.run_id }}"
           commit-message: "Aggiorna data/news.json (pillola)"
           body: |
             PR automatica: nuova pillola pronta.
