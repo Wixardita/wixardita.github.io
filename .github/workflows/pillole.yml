@@ -2,7 +2,8 @@ name: Pillole quotidiane
 
 on:
   schedule:
-    - cron: "5 6 * * *"   # 07:05 in Italia quando siamo in ora solare (UTC+1)
+    # 06:05 UTC ~ 07:05 Italia (in ora solare). Se vuoi, poi lo rifiniamo.
+    - cron: "5 6 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -17,6 +18,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Ensure data folder exists
+        run: |
+          mkdir -p data
+          if [ ! -f data/news.json ]; then
+            echo "[]" > data/news.json
+          fi
+
       - name: Generate pillola (OpenAI) -> data/news.json
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -24,53 +32,99 @@ jobs:
           cat > gen.mjs <<'EOF'
           import fs from "fs";
 
-const today = new Date().toISOString().slice(0, 10);
+          if (!process.env.OPENAI_API_KEY) {
+            console.error("Missing OPENAI_API_KEY secret.");
+            process.exit(1);
+          }
 
-const path = "data/news.json";
-const arr = fs.existsSync(path)
-  ? JSON.parse(fs.readFileSync(path, "utf8"))
-  : [];
+          const today = new Date().toISOString().slice(0, 10);
+          const path = "data/news.json";
 
-const recentTitles = arr.slice(0, 40).map(x => x.title).join(" | ");
+          // Load existing archive (memory)
+          let arr = [];
+          try {
+            arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
+            if (!Array.isArray(arr)) arr = [];
+          } catch {
+            arr = [];
+          }
 
-const prompt = `
-Devi scrivere un articolo per il blog dello Studio Paganelli.
+          const recentTitlesList = arr
+            .slice(0, 40)
+            .map(x => (x?.title ?? "").trim())
+            .filter(Boolean);
 
-Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
-Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
+          const recentTitles = recentTitlesList.length
+            ? recentTitlesList.join(" | ")
+            : "(nessuno)";
 
-TEMI GIÀ TRATTATI RECENTEMENTE:
-${recentTitles}
+          const prompt = `
+          Devi scrivere un articolo per il blog dello Studio Paganelli.
 
-Non ripetere né riformulare in modo simile nessuno dei temi sopra indicati.
-Scegli un argomento sostanzialmente diverso.
+          Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
+          Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
 
-Scrivi un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale.
+          TEMI GIÀ TRATTATI RECENTEMENTE (NON RIPETERE):
+          ${recentTitles}
 
-Tono:
-- autorevole ma non accademico
-- professionale ma accessibile
-- ironia leggera e intelligente
-- conclusioni operative e ferme
+          Regola anti-ripetizione:
+          - Non ripetere né riformulare in modo simile nessuno dei temi sopra.
+          - Se il tema è affine, cambia davvero angolo e sostanza (non “stesso tema con titolo diverso”).
 
-Struttura:
-- apertura con problema reale
-- sviluppo pratico
-- eventuale breve episodio professionale (massimo 10 righe, non autocelebrativo)
-- chiusura con indicazioni operative concrete
+          SCRIVI:
+          Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale
+          (legale, tecnico, amministrativo o normativo), con taglio pratico e operativo.
 
-Non inventare riferimenti normativi.
+          TONO:
+          - autorevole ma non accademico
+          - professionale ma accessibile
+          - ironia leggera e intelligente (mai sarcastica verso condomini, mai polemica verso istituzioni)
+          - conclusioni ferme
 
-Firma finale obbligatoria:
-Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
+          STILE:
+          - Parti da un problema reale o domanda tipica, NON da una definizione teorica.
+          - Evita burocratese, super-citazioni di norme e spiegazioni da manuale universitario.
+          - Spiega la regola attraverso casi realistici di condominio.
 
-OUTPUT SOLO JSON valido:
-{
-  "title": "...",
-  "body": "...",
-  "tags": ["...", "..."]
-}
-`;
+          EPISODIO (solo se naturale e coerente, NON obbligatorio):
+          - massimo 8-10 righe
+          - nessun nome o dettaglio identificativo
+          - non drammatico per forza, non autocelebrativo
+          - deve servire a chiarire il principio (non diventare racconto)
+
+          CHIUSURA:
+          Inserisci una sezione finale "Cosa fare in pratica" con 3–5 punti elenco,
+          concreti (cosa verificare / cosa evitare / cosa fare).
+
+          NOVITÀ:
+          Se non hai certezza assoluta di novità normative/giurisprudenziali, NON inventare riferimenti.
+
+          FIRMA FINALE OBBLIGATORIA:
+          Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
+
+          OUTPUT OBBLIGATORIO:
+          Restituisci SOLO JSON valido (niente markdown, niente testo extra) con struttura:
+          {
+            "title": "...",
+            "body": "...",
+            "tags": ["...", "...", "..."]
+          }
+          `.trim();
+
+          function extractJson(text) {
+            const t = (text || "").trim();
+            // 1) try full parse
+            try { return JSON.parse(t); } catch {}
+            // 2) try substring between first { and last }
+            const a = t.indexOf("{");
+            const b = t.lastIndexOf("}");
+            if (a !== -1 && b !== -1 && b > a) {
+              const sub = t.slice(a, b + 1);
+              try { return JSON.parse(sub); } catch {}
+            }
+            return null;
+          }
+
           const r = await fetch("https://api.openai.com/v1/responses", {
             method: "POST",
             headers: {
@@ -78,8 +132,9 @@ OUTPUT SOLO JSON valido:
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              model: "gpt-4.1-mini",
-              input: prompt
+              model: "gpt-5-mini",
+              input: prompt,
+              max_output_tokens: 1400
             })
           });
 
@@ -91,12 +146,9 @@ OUTPUT SOLO JSON valido:
           const data = await r.json();
           const text = (data.output_text || "").trim();
 
-          let obj;
-          try {
-            obj = JSON.parse(text);
-          } catch (e) {
-            console.error("Model did not return pure JSON. Raw output:");
-            console.error(text);
+          const obj = extractJson(text);
+          if (!obj) {
+            console.error("Model did not return valid JSON. Raw output:\n", text);
             process.exit(1);
           }
 
@@ -112,16 +164,12 @@ OUTPUT SOLO JSON valido:
             process.exit(1);
           }
 
-          const path = "data/news.json";
-          const arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
-          if (!Array.isArray(arr)) throw new Error("data/news.json must be an array");
-
-          // evita doppioni stesso giorno
+          // Avoid duplicates for same date
           const filtered = arr.filter(x => x?.date !== today);
           filtered.unshift(entry);
 
-          // tieni al massimo 120 pillole (circa 4 mesi)
-          const capped = filtered.slice(0, 120);
+          // Keep max 180 posts (~6 mesi)
+          const capped = filtered.slice(0, 180);
 
           fs.writeFileSync(path, JSON.stringify(capped, null, 2) + "\n");
           console.log("Updated", path);
@@ -129,15 +177,15 @@ OUTPUT SOLO JSON valido:
 
           node gen.mjs
 
-      - name: Create PR
+      - name: Create Pull Request
         uses: peter-evans/create-pull-request@v6
         with:
           branch: pillole/${{ github.run_id }}
-          title: "Pillola di condominio – ${{
-            github.run_id
-          }}"
+          title: "Pillola di condominio (${{
+            github.run_number
+          }})"
           commit-message: "Aggiorna data/news.json (pillola)"
           body: |
             PR automatica: nuova pillola pronta.
-            Approva questa PR per pubblicare sul sito.
+            Controlla e fai merge per pubblicare sul sito.
           labels: pillole
