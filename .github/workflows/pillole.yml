@@ -24,9 +24,14 @@ jobs:
           cat > gen.mjs <<'EOF'
           import fs from "fs";
 
-          const today = new Date().toISOString().slice(0, 10);
+const today = new Date().toISOString().slice(0, 10);
 
-        const existingTitles = recentTitles.join(" | ");
+const path = "data/news.json";
+const arr = fs.existsSync(path)
+  ? JSON.parse(fs.readFileSync(path, "utf8"))
+  : [];
+
+const recentTitles = arr.slice(0, 40).map(x => x.title).join(" | ");
 
 const prompt = `
 Devi scrivere un articolo per il blog dello Studio Paganelli.
@@ -35,70 +40,37 @@ Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
 Genova può essere citata solo come riferimento a casi passati (non è più area operativa principale).
 
 TEMI GIÀ TRATTATI RECENTEMENTE:
-${existingTitles}
+${recentTitles}
 
 Non ripetere né riformulare in modo simile nessuno dei temi sopra indicati.
 Scegli un argomento sostanzialmente diverso.
 
----
+Scrivi un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale.
 
-SCRIVI:
-
-Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale (legale, tecnico, amministrativo o normativo), con taglio pratico e operativo.
-
-Il testo deve:
-
-- partire da un problema reale o da una domanda tipica
-- non partire da definizioni teoriche
-- evitare linguaggio burocratico o accademico
-- evitare citazioni normative letterali salvo reale necessità
-- non avere tono da manuale universitario
-
-TONO:
-
+Tono:
 - autorevole ma non accademico
 - professionale ma accessibile
-- ironia leggera e intelligente, mai sarcastica
-- conclusioni ferme ma non retoriche
+- ironia leggera e intelligente
+- conclusioni operative e ferme
 
-Se coerente con il tema, puoi integrare un breve episodio professionale realmente verosimile:
+Struttura:
+- apertura con problema reale
+- sviluppo pratico
+- eventuale breve episodio professionale (massimo 10 righe, non autocelebrativo)
+- chiusura con indicazioni operative concrete
 
-- massimo 8–10 righe
-- senza nomi o dettagli identificativi
-- non drammatico
-- non conflittuale per forza
-- non trasformare l’articolo in un racconto autobiografico
-- deve rafforzare la competenza, non autocelebrare
+Non inventare riferimenti normativi.
 
-CHIUSURA:
-
-Deve contenere una riflessione operativa concreta:
-- cosa verificare
-- cosa evitare
-- cosa fare in assemblea o in gestione
-
-Non una morale generica.
-
-Prima di sviluppare l’articolo, valuta se vi siano novità normative o giurisprudenziali rilevanti.
-Se non hai certezza, NON inventare riferimenti normativi.
-
-FIRMA FINALE OBBLIGATORIA:
-
+Firma finale obbligatoria:
 Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
 
----
-
-OUTPUT OBBLIGATORIO:
-
-Restituisci SOLO JSON valido con questa struttura:
-
+OUTPUT SOLO JSON valido:
 {
   "title": "...",
   "body": "...",
-  "tags": ["tag1", "tag2", "tag3"]
+  "tags": ["...", "..."]
 }
 `;
-
           const r = await fetch("https://api.openai.com/v1/responses", {
             method: "POST",
             headers: {
