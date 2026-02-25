@@ -2,9 +2,8 @@ name: Pillole quotidiane
 
 on:
   schedule:
-    # 06:05 UTC ~ 07:05 Italia (in ora solare). Se vuoi, poi lo rifiniamo.
     - cron: "5 6 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,7 +12,6 @@ permissions:
 jobs:
   generate:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,7 +38,6 @@ jobs:
           const today = new Date().toISOString().slice(0, 10);
           const path = "data/news.json";
 
-          // Load existing archive (memory)
           let arr = [];
           try {
             arr = fs.existsSync(path) ? JSON.parse(fs.readFileSync(path, "utf8")) : [];
@@ -54,9 +51,7 @@ jobs:
             .map(x => (x?.title ?? "").trim())
             .filter(Boolean);
 
-          const recentTitles = recentTitlesList.length
-            ? recentTitlesList.join(" | ")
-            : "(nessuno)";
+          const recentTitles = recentTitlesList.length ? recentTitlesList.join(" | ") : "(nessuno)";
 
           const prompt = `
           Devi scrivere un articolo per il blog dello Studio Paganelli.
@@ -111,41 +106,21 @@ jobs:
           }
           `.trim();
 
-          function extractJson(text) {
-            const t = (text || "").trim();
-            // 1) try full parse
-            try { return JSON.parse(t); } catch {}
-            // 2) try substring between first { and last }
-            const a = t.indexOf("{");
-            const b = t.lastIndexOf("}");
-            if (a !== -1 && b !== -1 && b > a) {
-              const sub = t.slice(a, b + 1);
-              try { return JSON.parse(sub); } catch {}
-            }
-            return null;
-          }
-
           const r = await fetch("https://api.openai.com/v1/responses", {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
               "Content-Type": "application/json"
             },
-           body: JSON.stringify({
-  model: "gpt-5-mini",
-  input: [
-    {
-      role: "system",
-      content: "You are a careful assistant that outputs strictly valid JSON only."
-    },
-    {
-      role: "user",
-      content: prompt
-    }
-  ],
-  response_format: { type: "json_object" },
-  max_output_tokens: 1600
-})
+            body: JSON.stringify({
+              model: "gpt-5-mini",
+              input: [
+                { role: "system", content: "Return strictly valid JSON only." },
+                { role: "user", content: prompt }
+              ],
+              response_format: { type: "json_object" },
+              max_output_tokens: 1700
+            })
           });
 
           if (!r.ok) {
@@ -156,9 +131,14 @@ jobs:
           const data = await r.json();
           const text = (data.output_text || "").trim();
 
-          const obj = extractJson(text);
-          if (!obj) {
-            console.error("Model did not return valid JSON. Raw output:\n", text);
+          // Helpful debug if something goes wrong
+          console.log("RAW OUTPUT (first 1200 chars):", text.slice(0, 1200));
+
+          let obj = null;
+          try { obj = JSON.parse(text); } catch {}
+
+          if (!obj || typeof obj !== "object") {
+            console.error("Model did not return valid JSON object.");
             process.exit(1);
           }
 
@@ -174,7 +154,7 @@ jobs:
             process.exit(1);
           }
 
-          // Avoid duplicates for same date
+          // Remove possible duplicate for same date, prepend new
           const filtered = arr.filter(x => x?.date !== today);
           filtered.unshift(entry);
 
@@ -191,9 +171,7 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           branch: pillole/${{ github.run_id }}
-          title: "Pillola di condominio (${{
-            github.run_number
-          }})"
+          title: "Pillola di condominio - ${{ github.run_id }}"
           commit-message: "Aggiorna data/news.json (pillola)"
           body: |
             PR automatica: nuova pillola pronta.
