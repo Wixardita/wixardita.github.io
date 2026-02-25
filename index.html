@@ -949,6 +949,89 @@
         font-size: 1.8rem;
       }
     }
+
+    /* CTA "Pillole di condominio" (bottone centrale in header) */
+    .nav-inner { position: relative; }
+
+    .pillole-cta{
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 12;
+
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+
+      padding: 10px 14px;
+      border-radius: var(--radius-pill);
+
+      text-decoration: none;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+
+      color: rgba(255,255,255,.96);
+      background: linear-gradient(135deg, #ff2a2a, #b30000);
+      border: 1px solid rgba(255,255,255,0.16);
+
+      box-shadow:
+        0 18px 45px rgba(255, 0, 0, .22),
+        0 0 0 1px rgba(255,255,255,.06) inset;
+
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+
+      animation: pillolePulse 2.8s ease-in-out infinite;
+    }
+
+    .pillole-cta__dot{
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 0 16px rgba(255,255,255,.55);
+      flex: 0 0 auto;
+    }
+
+    .pillole-cta__arrow{
+      opacity: .95;
+      transform: translateX(0);
+      transition: transform var(--transition-fast), opacity var(--transition-fast);
+      flex: 0 0 auto;
+    }
+
+    .pillole-cta:hover{
+      filter: saturate(1.06) brightness(1.04);
+      box-shadow:
+        0 22px 60px rgba(255, 0, 0, .30),
+        0 0 0 1px rgba(255,255,255,.08) inset;
+    }
+
+    .pillole-cta:hover .pillole-cta__arrow{
+      transform: translateX(2px);
+      opacity: 1;
+    }
+
+    @keyframes pillolePulse{
+      0%, 100% { transform: translate(-50%, -50%) scale(1); }
+      50%      { transform: translate(-50%, -50%) scale(1.035); }
+    }
+
+    /* Su mobile il menu sparisce: mettiamo il bottone "in linea" vicino al logo */
+    @media (max-width: 720px){
+      .pillole-cta{
+        position: static;
+        transform: none;
+        margin-left: 12px;
+        animation: none;
+        padding: 9px 12px;
+        font-size: 0.74rem;
+      }
+      .pillole-cta__text{ white-space: nowrap; }
+    }
+
   </style>
 </head>
 <body>
@@ -961,7 +1044,14 @@
             <div class="brand-mark"></div>
             <div class="brand-name">STUDIO PAGANELLI</div>
           </div>
-          <nav class="nav-links">
+          
+          <a class="pillole-cta" href="pillole.html" aria-label="Apri Pillole di condominio">
+            <span class="pillole-cta__dot" aria-hidden="true"></span>
+            <span class="pillole-cta__text">Pillole di condominio</span>
+            <span class="pillole-cta__arrow" aria-hidden="true">⟶</span>
+          </a>
+
+<nav class="nav-links">
             <a href="#studio">Lo Studio</a>
             <a href="#attivita">Attività</a>
             <a href="#immobili">Immobili</a>

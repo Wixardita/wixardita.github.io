@@ -1,30 +1,582 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+  <title>Pillole di condominio – Studio Paganelli</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pillole di Condominio – Studio Paganelli</title>
+  <meta name="description" content="Pillole di condominio: approfondimenti pratici su assemblee, spese, lavori e gestione condominiale." />
 
-  <!-- Se hai già un CSS principale nel sito, linkalo qui. Esempio:
-  <link rel="stylesheet" href="/assets/style.css" />
-  -->
+  <!-- Fonts (coerenti con la home) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+    :root {
+      --bg-body: #050608;
+      --bg-panel: rgba(12, 16, 22, 0.9);
+      --bg-soft: #0f151b;
+      --text-main: #f7f7f5;
+      --text-muted: #c3cbc7;
+      --accent-1: #b6f0d3;
+      --accent-2: #ffd2b8;
+      --accent-3: #c0c9ff;
+      --accent-deep: #4d7680;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --shadow-soft: 0 28px 80px rgba(0, 0, 0, 0.7);
+      --radius-xl: 28px;
+      --radius-pill: 999px;
+      --max-width: 1120px;
+      --transition-fast: 180ms ease-out;
+      --transition-med: 320ms ease;
+      --red-1: #ff2a2a;
+      --red-2: #b30000;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Nunito', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: radial-gradient(circle at 0% -20%, #2b3c3a 0, #050608 36%) fixed;
+      color: var(--text-main);
+      line-height: 1.55;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Organic background blobs */
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: -2;
+      border-radius: 999px;
+      opacity: 0.55;
+      filter: blur(46px);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+    body::before {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle at 30% 30%, var(--accent-1), transparent 60%);
+      top: -80px; left: -120px;
+    }
+    body::after {
+      width: 520px; height: 520px;
+      background: radial-gradient(circle at 70% 70%, var(--accent-2), transparent 65%);
+      bottom: -140px; right: -120px;
+    }
+
+    .veil {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(182, 240, 211, 0.08), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(192, 201, 255, 0.05), transparent 50%);
+      mix-blend-mode: soft-light;
+      opacity: 0.85;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .nav-shell {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      background: linear-gradient(to bottom, rgba(5, 6, 8, 0.92), rgba(5, 6, 8, 0.75));
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      max-width: var(--max-width);
+      margin: 0 auto;
+      gap: 14px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text-main); }
+    .brand-mark {
+      width: 32px; height: 32px;
+      border-radius: 34% 66% 53% 47% / 39% 34% 66% 61%;
+      background: radial-gradient(circle at 30% 20%, var(--accent-1), var(--accent-deep));
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 40px rgba(0, 0, 0, 0.5);
+      position: relative; overflow: hidden;
+    }
+    .brand-mark::after {
+      content:""; position:absolute; inset:0;
+      background: radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.6), transparent 50%);
+      opacity:0.5; mix-blend-mode:screen;
+    }
+    .brand-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.05rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .nav-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(8, 13, 16, 0.55);
+      transition: transform var(--transition-fast), color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .nav-link:hover { color: var(--text-main); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
+
+    .nav-link.red {
+      background: linear-gradient(135deg, var(--red-1), var(--red-2));
+      border-color: rgba(255,255,255,0.16);
+      color: rgba(255,255,255,0.96);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      box-shadow: 0 18px 45px rgba(255, 0, 0, .18), 0 0 0 1px rgba(255,255,255,.06) inset;
+    }
+    .nav-link.red:hover { filter: saturate(1.06) brightness(1.04); }
+
+    /* Hero */
+    .hero { padding: 46px 0 22px; }
+    .hero-shell{
+      border-radius: calc(var(--radius-xl) * 1.15);
+      background:
+        radial-gradient(circle at 0 0, rgba(182, 240, 211, 0.10), transparent 60%),
+        radial-gradient(circle at 100% 100%, rgba(192, 201, 255, 0.10), transparent 60%),
+        var(--bg-panel);
+      border: 1px solid var(--border-subtle);
+      padding: 30px 26px 22px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.68);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-kicker{
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.32em;
+      color: var(--accent-1);
+      margin-bottom: 12px;
+    }
+    .hero-title{
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(2.0rem, 3.2vw, 2.7rem);
+      line-height: 1.08;
+      margin-bottom: 10px;
+    }
+    .hero-title span{
+      background: linear-gradient(120deg, var(--accent-1), var(--accent-2), var(--accent-3));
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+    .hero-sub{
+      color: var(--text-muted);
+      max-width: 78ch;
+      margin-bottom: 18px;
+    }
+
+    .controls{
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 10px;
+    }
+    @media (max-width: 720px){
+      .controls{ grid-template-columns: 1fr; }
+    }
+
+    .search{
+      display:flex; align-items:center; gap: 10px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(6,10,15,0.70);
+    }
+    .search input{
+      width: 100%;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
+
+    .btn{
+      border-radius: var(--radius-pill);
+      padding: 12px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(8, 13, 16, 0.78);
+      color: var(--text-main);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+    }
+    .btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.22); }
+
+    .tags{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .tag{
+      padding: 8px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(8, 13, 16, 0.62);
+      cursor: pointer;
+      transition: transform var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+      user-select: none;
+    }
+    .tag:hover{ transform: translateY(-1px); border-color: rgba(182,240,211,0.55); color: var(--text-main); }
+    .tag.active{
+      color: rgba(255,255,255,0.96);
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,42,42,0.10);
+    }
+
+    /* Grid cards */
+    .grid { padding: 22px 0 70px; }
+    .cards{
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .card{
+      grid-column: span 12;
+      border-radius: 24px;
+      padding: 18px 16px 16px;
+      background: radial-gradient(circle at 0 0, rgba(255, 210, 184, 0.10), transparent 60%), rgba(6,10,15,0.92);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 18px 44px rgba(0,0,0,0.68);
+      position: relative;
+      overflow: hidden;
+      transition: transform 260ms ease, border-color 260ms ease, box-shadow 260ms ease;
+    }
+    .card:hover{
+      transform: translateY(-3px);
+      border-color: rgba(182, 240, 211, 0.55);
+      box-shadow: 0 26px 60px rgba(0,0,0,0.85);
+    }
+    @media (min-width: 920px){
+      .card{ grid-column: span 6; }
+    }
+
+    .meta{
+      font-size: 0.82rem;
+      letter-spacing: 0.20em;
+      text-transform: uppercase;
+      color: rgba(192, 201, 255, 0.78);
+      margin-bottom: 8px;
+    }
+    .title{
+      font-size: 1.12rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .excerpt{
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.65;
+      margin-bottom: 14px;
+    }
+
+    .card-bottom{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .read{
+      text-decoration:none;
+      color: rgba(255,255,255,0.92);
+      font-weight: 800;
+      display:inline-flex;
+      gap: 10px;
+      align-items:center;
+    }
+    .read:hover{ color: var(--text-main); }
+
+    .badge{
+      padding: 6px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
+      border: 1px solid rgba(182,240,211,0.18);
+      background: rgba(182,240,211,0.08);
+      color: rgba(182,240,211,0.85);
+      white-space: nowrap;
+    }
+
+    /* Modal */
+    .modal{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.62);
+      display:none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 999;
+    }
+    .modal.open{ display:flex; }
+
+    .modal-box{
+      width: min(920px, 100%);
+      max-height: 86vh;
+      overflow: auto;
+      border-radius: 24px;
+      background: rgba(10, 14, 14, 0.88);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 26px 120px rgba(0,0,0,0.65);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 18px 18px 22px;
+    }
+
+    .modal-top{
+      display:flex;
+      align-items:flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .close{
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.9);
+      border-radius: 14px;
+      padding: 10px 12px;
+      cursor:pointer;
+      font-weight: 800;
+    }
+    .modal-title{
+      font-family: 'Playfair Display', serif;
+      font-size: 1.65rem;
+      line-height: 1.1;
+      margin-top: 6px;
+    }
+    .modal-body{
+      white-space: pre-wrap;
+      line-height: 1.75;
+      color: rgba(255,255,255,0.90);
+      margin-top: 12px;
+      font-size: 0.98rem;
+    }
+
+    .empty{
+      border-radius: 24px;
+      padding: 18px 16px;
+      background: rgba(6,10,15,0.92);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
 </head>
 
 <body>
-  <main style="max-width: 980px; margin: 0 auto; padding: 32px 20px;">
-    <header style="margin-bottom: 18px;">
-      <a href="/" style="text-decoration:none; opacity:.8;">← Torna alla home</a>
-      <h1 style="margin: 10px 0 0;">Pillole di condominio</h1>
-      <p style="opacity:.75; margin: 8px 0 0;">
-        Approfondimenti pratici e rapidi su gestione, assemblee, spese, lavori e casi tipici.
-      </p>
-    </header>
+  <div class="veil"></div>
 
-    <section id="news-list" style="margin-top: 26px;">
-      Caricamento…
+  <header>
+    <div class="nav-shell">
+      <div class="nav-inner">
+        <a class="brand" href="index.html" aria-label="Torna alla home">
+          <div class="brand-mark"></div>
+          <div class="brand-name">STUDIO PAGANELLI</div>
+        </a>
+
+        <div class="nav-actions">
+          <a class="nav-link" href="index.html#contatti">Contatti</a>
+          <a class="nav-link" href="index.html#cta">Preventivo</a>
+          <a class="nav-link red" href="index.html">⟵ Home</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-shell">
+        <div class="hero-kicker">AMMINISTRAZIONI CONDOMINIALI · LOANO</div>
+        <div class="hero-title">Pillole di <span>condominio</span></div>
+        <p class="hero-sub">
+          Approfondimenti rapidi e pratici su assemblee, spese, lavori e casi tipici: roba utile, scritta chiara.
+        </p>
+
+        <div class="controls">
+          <div class="search">
+            <span style="opacity:.7">⌕</span>
+            <input id="q" type="text" placeholder="Cerca per titolo, testo o tag…" autocomplete="off">
+          </div>
+          <button class="btn" id="reset">Reset</button>
+        </div>
+
+        <div class="tags" id="tags"></div>
+      </div>
+    </section>
+
+    <section class="grid" aria-live="polite">
+      <div class="cards" id="cards"></div>
     </section>
   </main>
 
-  <script src="/js/news.js"></script>
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-box">
+      <div class="modal-top">
+        <div>
+          <div class="meta" id="mDate"></div>
+          <div class="modal-title" id="mTitle"></div>
+          <div class="meta" id="mTags" style="margin-top:10px;"></div>
+        </div>
+        <button class="close" id="close">Chiudi ✕</button>
+      </div>
+      <div class="modal-body" id="mBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function escapeHtml(s){
+      return String(s)
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    }
+
+    function uniq(arr){ return [...new Set(arr.filter(Boolean))]; }
+
+    function excerpt(text, n=260){
+      const t = String(text || "").trim().replace(/\s+/g, " ");
+      return t.length > n ? t.slice(0, n) + "…" : t;
+    }
+
+    let all = [];
+    let activeTag = "";
+    let query = "";
+
+    function buildTags(items){
+      const tags = uniq(items.flatMap(x => Array.isArray(x.tags) ? x.tags : []));
+      const box = $("tags");
+      box.innerHTML = "";
+
+      if (!tags.length) return;
+
+      const mk = (t, isAll=false) => {
+        const el = document.createElement("button");
+        el.className = "tag" + (((isAll && !activeTag) || t === activeTag) ? " active" : "");
+        el.textContent = t;
+        el.onclick = () => {
+          activeTag = isAll ? "" : (activeTag === t ? "" : t);
+          render();
+          buildTags(all);
+        };
+        return el;
+      };
+
+      box.appendChild(mk("Tutte", true));
+      tags.forEach(t => box.appendChild(mk(t)));
+    }
+
+    function matches(item){
+      const hay = (item.title + " " + item.body + " " + (item.tags||[]).join(" ")).toLowerCase();
+      const qOk = !query || hay.includes(query.toLowerCase());
+      const tOk = !activeTag || (item.tags || []).includes(activeTag);
+      return qOk && tOk;
+    }
+
+    function openModal(item){
+      $("mDate").textContent = item.date || "";
+      $("mTitle").textContent = item.title || "";
+      $("mTags").textContent = (Array.isArray(item.tags) && item.tags.length) ? ("Tag: " + item.tags.join(", ")) : "";
+      $("mBody").textContent = item.body || "";
+      $("modal").classList.add("open");
+      $("modal").setAttribute("aria-hidden","false");
+    }
+
+    function closeModal(){
+      $("modal").classList.remove("open");
+      $("modal").setAttribute("aria-hidden","true");
+    }
+
+    function render(){
+      const box = $("cards");
+      const items = all.filter(matches);
+
+      if (!items.length){
+        box.innerHTML = '<div class="empty" style="grid-column: span 12;">Nessun risultato (o nessuna pillola pubblicata per ora).</div>';
+        return;
+      }
+
+      box.innerHTML = items.map((x, i) => {
+        const tag = (Array.isArray(x.tags) && x.tags[0]) ? x.tags[0] : "Condominio";
+        return `
+          <article class="card">
+            <div class="meta">${escapeHtml(x.date || "")}</div>
+            <div class="title">${escapeHtml(x.title || "")}</div>
+            <div class="excerpt">${escapeHtml(excerpt(x.body))}</div>
+            <div class="card-bottom">
+              <a class="read" href="#" data-i="${i}">Leggi <span style="opacity:.9">⟶</span></a>
+              <span class="badge">${escapeHtml(tag)}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+
+      box.querySelectorAll('a[data-i]').forEach(a => {
+        a.onclick = (e) => {
+          e.preventDefault();
+          const i = Number(a.getAttribute("data-i"));
+          openModal(items[i]);
+        };
+      });
+    }
+
+    async function init(){
+      const res = await fetch("data/news.json", { cache: "no-store" });
+      const data = await res.json();
+      all = Array.isArray(data) ? data : [];
+      buildTags(all);
+      render();
+    }
+
+    $("q").addEventListener("input", (e) => { query = e.target.value; render(); });
+    $("reset").addEventListener("click", () => {
+      query = ""; activeTag = "";
+      $("q").value = "";
+      buildTags(all);
+      render();
+    });
+
+    $("close").addEventListener("click", closeModal);
+    $("modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
+
+    init().catch(() => {
+      $("cards").innerHTML = '<div class="empty" style="grid-column: span 12;">Impossibile caricare le pillole (manca /data/news.json).</div>';
+    });
+  </script>
 </body>
 </html>
