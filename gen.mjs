@@ -25,8 +25,8 @@ const recentTitles = arr
 const prompt = `
 Devi scrivere un articolo per il blog dello Studio Paganelli.
 
-Studio Paganelli opera prevalentemente tra Loano e Pietra Ligure.
-Genova può essere citata solo come riferimento a casi passati.
+Studio Paganelli opera sul territorio ligure, prevalentemente a Loano.
+Genova può essere citata solo come riferimento a casi passati, magari quando l'articolo riguarda questioni legate a grandi edifici o complessi (supercondomini, palazzoni, etc..)
 
 TEMI GIÀ TRATTATI (NON RIPETERE):
 ${recentTitles}
@@ -35,7 +35,7 @@ Regola anti-ripetizione:
 - Non ripetere né riformulare temi simili.
 
 SCRIVI:
-Un articolo di circa 800 parole su un tema concreto di diritto o gestione condominiale.
+Un articolo di circa 400 parole su un tema concreto di gestione condominiale: puoi spaziare dalle assemblee (maggioranze, deleghe, chi mantiene l'ordine etc..) a problemi concreti (infiltrazioni, polizza, adempimenti fiscali, risponsabilità per la sicurezza, etc..). Sono solo esempi, puoi spaziare in quegli ambiti. 
 
 TONO:
 - autorevole ma non accademico
@@ -44,9 +44,9 @@ TONO:
 - conclusioni ferme
 
 STILE:
-- Parti da un problema reale.
-- Evita burocratese.
-- Inserisci sezione finale "Cosa fare in pratica" con 3-5 punti elenco.
+- Parti da un problema o casistiche reali (con un 20% di probabilità di generare un testo che contiene riferimenti a "esperienza diretta" vissuta durante la mia vita lavorativa come amministratore e come è stata gestita positivamente)
+- Evita burocratese se non in pochi e fondamentali passaggi.
+- Inserisci sezione finale di riepilogo in un elenco di 3-5 punti, chiamato "Focus"
 
 Firma finale obbligatoria:
 Studio Paganelli – Amministrazione e consulenza condominiale in Liguria.
@@ -59,7 +59,7 @@ const response = await fetch("https://api.openai.com/v1/responses", {
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
-    model: "gpt-5-mini",
+    model: "gpt-5.1",
     input: prompt,
     max_output_tokens: 2000
   })
