@@ -379,7 +379,7 @@
       margin-top: 6px;
     }
     .modal-body{
-      white-space: pre-wrap;
+      white-space: normal;
       line-height: 1.75;
       color: rgba(255,255,255,0.90);
       margin-top: 12px;
@@ -456,7 +456,7 @@
       <div class="modal-body" id="mBody"></div>
     </div>
   </div>
-
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -511,7 +511,7 @@
       $("mDate").textContent = item.date || "";
       $("mTitle").textContent = item.title || "";
       $("mTags").textContent = (Array.isArray(item.tags) && item.tags.length) ? ("Tag: " + item.tags.join(", ")) : "";
-      $("mBody").textContent = item.body || "";
+      $("mBody").innerHTML = marked.parse(item.body || "");
       $("modal").classList.add("open");
       $("modal").setAttribute("aria-hidden","false");
     }
